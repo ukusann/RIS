@@ -205,9 +205,13 @@ while stop==0
         [error_gripStatus, gripStatus] = robot_arm.get_hand_state();
         pause(1);
         if gripStatus == 0
-            releaseObj = 0;
-            goToStart = 1;
-            exit = 1;
+            wait_count = wait_count + 1;
+            if(wait_count == 10)
+                wait_count = 0;
+                releaseObj = 0;
+                goToStart = 1;
+                exit = 1;
+            end
         end
 
     end
