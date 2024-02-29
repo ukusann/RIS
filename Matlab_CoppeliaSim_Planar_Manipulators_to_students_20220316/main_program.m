@@ -68,12 +68,21 @@ start = tic;
 m=1;
 stop=0;
 
+%-------- FSM
+
+% Define state transition functions
+stateFunctions = {@initPos, @goToTarget, @goToCheckpoint, @gripOpen, @gripClose};
+
+% Initial state
+currentState = states_enum.INIT_POS;
+nextState = currentState;
+
 % -------User variables
-goToTarget = 1;
-graspObj = 0;
-releaseObj = 0;
-goToStart = 0;
-goToCheckpoint = 0;
+% goToTarget = 1;
+% graspObj = 0;
+% releaseObj = 0;
+% goToStart = 0;
+% goToCheckpoint = 0;
 error_grip = 0;
 error_gripStatus = 0;
 while stop==0
@@ -122,71 +131,75 @@ while stop==0
     sim.trigger_simulation();
     %----------------------------------------------------------------------
     % --- YOUR CODE --- %
-    if goToTarget == 1
-        %Inverse Kinematics - Send values for joints
-        pe = [targetPosition(1) targetPosition(2)]';  
-        S=-1; % Elbow right
-        % S=1; % Elbow left
-        [error_inv_kin, qout]=InvKin_planar_2DOF_geo(pe,Links, S, MinPositionJoint, MaxPositionJoint);
-        qout_deg = qout*180/pi;
-        armJoints(1) = qout(1);
-        armJoints(2) = qout(2);
-        error = robot_arm.set_joints(armJoints); %send value for arm Joints in rad
-        distX = (armPosition(1) - targetPosition(1)); 
-        distY = (armPosition(2) - targetPosition(2));
-        if distX <= 0.1 && distY <= 0.2
-            goToTarget = 0;
-            graspObj = 1;
-        end
+    % Execute current state function
+    nextState = stateFunctions{int8(currentState)}();
+    currentState = nextState;
+    ReadArmJoints
+    % if goToTarget == 1
+    %     %Inverse Kinematics - Send values for joints
+    %     pe = [targetPosition(1) targetPosition(2)]';  
+    %     S=-1; % Elbow right
+    %     % S=1; % Elbow left
+    %     [error_inv_kin, qout]=InvKin_planar_2DOF_geo(pe,Links, S, MinPositionJoint, MaxPositionJoint);
+    %     qout_deg = qout*180/pi;
+    %     armJoints(1) = qout(1);
+    %     armJoints(2) = qout(2);
+    %     error = robot_arm.set_joints(armJoints); %send value for arm Joints in rad
+    %     distX = (armPosition(1) - targetPosition(1)); 
+    %     distY = (armPosition(2) - targetPosition(2));
+    %     if distX <= 0.1 && distY <= 0.2
+    %         goToTarget = 0;
+    %         graspObj = 1;
+    %     end
         
-    elseif goToCheckpoint == 1
-        theta1_rad = -60*pi/180; % rad
-        theta2_rad = 90*pi/180; % rad
-        % qinput=[theta1_rad  theta2_rad]';
+    % elseif goToCheckpoint == 1
+    %     theta1_rad = -60*pi/180; % rad
+    %     theta2_rad = 90*pi/180; % rad
+    %     % qinput=[theta1_rad  theta2_rad]';
 
-        % [pe]=DirKin_planar_2DOF(qinput,Links);
+    %     % [pe]=DirKin_planar_2DOF(qinput,Links);
         
-        armJoints(1)=theta1_rad;
-        armJoints(2)=theta2_rad;
-        error = robot_arm.set_joints(armJoints);
+    %     armJoints(1)=theta1_rad;
+    %     armJoints(2)=theta2_rad;
+    %     error = robot_arm.set_joints(armJoints);
 
-        distX = (ReadArmJoints(1) - theta1_rad); 
-        distY = (ReadArmJoints(2) - theta2_rad);
-        if distX <= 0.1 && distY <= 0.3
-            goToCheckpoint = 0;
-            goToStart = 1;
-        end
+    %     distX = (ReadArmJoints(1) - theta1_rad); 
+    %     distY = (ReadArmJoints(2) - theta2_rad);
+    %     if distX <= 0.1 && distY <= 0.3
+    %         goToCheckpoint = 0;
+    %         goToStart = 1;
+    %     end
 
-    elseif goToStart == 1
-        armJoints(1) = 0;
-        armJoints(2) = 0;
-        error = robot_arm.set_joints(armJoints);
-        distX = ReadArmJoints(1); 
-        distY = ReadArmJoints(2);
-        if distX <= 0.1 && distY <= 0.3
-            goToTarget = 1;
-            goToStart = 0;
-            error_grip = robot_arm.open_hand(); 
-            error_gripStatus; gripStatus = robot_arm.get_hand_state();
-            pause(1);
-        end
-        % if gripStatus == 0
-        %     goToStart = 0;
-        %     goToCheckpoint = 1;
-        % end
+    % elseif goToStart == 1
+    %     armJoints(1) = 0;
+    %     armJoints(2) = 0;
+    %     error = robot_arm.set_joints(armJoints);
+    %     distX = ReadArmJoints(1); 
+    %     distY = ReadArmJoints(2);
+    %     if distX <= 0.1 && distY <= 0.3
+    %         goToTarget = 1;
+    %         goToStart = 0;
+    %         error_grip = robot_arm.open_hand(); 
+    %         error_gripStatus; gripStatus = robot_arm.get_hand_state();
+    %         pause(1);
+    %     end
+    %     % if gripStatus == 0
+    %     %     goToStart = 0;
+    %     %     goToCheckpoint = 1;
+    %     % end
 
-    elseif graspObj == 1
-        error_grip = robot_arm.close_hand();    %close
-        error_gripStatus; gripStatus = robot_arm.get_hand_state();
-        pause(1);
-        graspObj = 0;
-        goToCheckpoint = 1;
-        % if gripStatus == 1
-        %     graspObj = 0;
-        %     goToCheckpoint = 1;
-        % end
+    % elseif graspObj == 1
+    %     error_grip = robot_arm.close_hand();    %close
+    %     error_gripStatus; gripStatus = robot_arm.get_hand_state();
+    %     pause(1);
+    %     graspObj = 0;
+    %     goToCheckpoint = 1;
+    %     % if gripStatus == 1
+    %     %     graspObj = 0;
+    %     %     goToCheckpoint = 1;
+    %     % end
 
-    end
+    % end
 
     
 
@@ -242,3 +255,112 @@ while stop==0
     %----------------------------------------------------------------------
 end
 error = sim.terminate();
+
+
+
+% Define state transition functions
+function nextState = initPos()
+    global robot_arm ReadArmJoints;
+
+    disp('State INIT_POS');
+    armJoints(1) = 0;
+    armJoints(2) = 0;
+    error = robot_arm.set_joints(armJoints);
+    handle_error(error, 0, 0);
+    distX = ReadArmJoints(1); 
+    distY = ReadArmJoints(2);
+    if distX <= 0.1 && distY <= 0.3
+        nextState = states_enum.GO_TO_TARGET;
+    else
+        nextState = states_enum.INIT_POS;
+    end
+end
+
+function nextState = goToTarget()
+    global robot_arm targetPosition armPosition Links MinPositionJoint MaxPositionJoint; 
+    disp('State GO_TO_TARGET');
+    %Inverse Kinematics - Send values for joints
+    pe = [targetPosition(1) targetPosition(2)]';  
+    S=-1; % Elbow right
+    % S=1; % Elbow left
+    [error_inv_kin, qout]=InvKin_planar_2DOF_geo(pe,Links, S, MinPositionJoint, MaxPositionJoint);
+    qout_deg = qout*180/pi;
+    armJoints(1) = qout(1);
+    armJoints(2) = qout(2);
+    error = robot_arm.set_joints(armJoints); %send value for arm Joints in rad
+    handle_error(error, 0, 0);
+    distX = abs(armPosition(1) - targetPosition(1));
+    distY = abs(armPosition(2) - targetPosition(2));
+    if distX <= 1 && distY <= 0.2
+        nextState = states_enum.GRIP_CLOSE;
+    else
+        nextState = states_enum.GO_TO_TARGET;
+    end
+end
+
+function nextState = goToCheckpoint()
+    global robot_arm ReadArmJoints;
+    disp('State GO_TO_CHECKPOINT');
+    theta1_rad = -60*pi/180; % rad
+    theta2_rad = 90*pi/180; % rad
+    % qinput=[theta1_rad  theta2_rad]';
+
+    % [pe]=DirKin_planar_2DOF(qinput,Links);
+    
+    armJoints(1)=theta1_rad;
+    armJoints(2)=theta2_rad;
+    error = robot_arm.set_joints(armJoints);
+    handle_error(error, 0, 0);
+    distX = (ReadArmJoints(1) - theta1_rad)
+    distY = (ReadArmJoints(2) - theta2_rad)
+    if distX <= 0.1 && distY <= 0.3
+        nextState = states_enum.GRIP_OPEN;
+    else
+        nextState = states_enum.GO_TO_CHECKPOINT;
+    end
+end
+
+function nextState = gripOpen()
+    global robot_arm;
+    disp('State GRIP_OPEN');
+    % Add your logic here
+    error_grip = robot_arm.open_hand();    %close
+    [error_gripStatus, gripStatus] = robot_arm.get_hand_state();
+    handle_error(0, error_grip, error_gripStatus);
+    pause(1);
+    nextState = states_enum.INIT_POS;
+    % if gripStatus == 1
+    %     nextState = states_enum.INIT_POS;
+    % else
+        % nextState = states_enum.GRIP_OPEN;
+    % end
+end
+
+function nextState = gripClose()
+    global robot_arm;
+    disp('State GRIP_CLOSE');
+    % Add your logic here
+    error_grip = robot_arm.close_hand();    %close
+    [error_gripStatus, gripStatus] = robot_arm.get_hand_state();
+    handle_error(0, error_grip, error_gripStatus);
+    pause(1);
+    nextState = states_enum.GO_TO_CHECKPOINT;
+    % if gripStatus == 1
+    %     nextState = states_enum.GO_TO_CHECKPOINT;
+    % else
+        % nextState = states_enum.GRIP_CLOSE;
+    % end
+end
+
+
+
+
+
+function handle_error(error, error_grip, error_gripStatus)
+    if error == 1 || error_grip == 1 || error_gripStatus == 1
+        sim.terminate();
+        return;
+    end
+end
+    
+
