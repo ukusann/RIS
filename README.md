@@ -1,7 +1,6 @@
 # RIS
 
 This is a project for the subject Industrial and Service Robotics for University of Minho
- A Simple To-Do List Application
 
 ## Description
 
